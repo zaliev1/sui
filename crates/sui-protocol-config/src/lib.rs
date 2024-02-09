@@ -415,6 +415,10 @@ struct FeatureFlags {
     // Set the upper bound allowed for max_epoch in zklogin signature.
     #[serde(skip_serializing_if = "Option::is_none")]
     zklogin_max_epoch_upper_bound_delta: Option<u64>,
+
+    // Enable VDF
+    #[serde(skip_serializing_if = "is_false")]
+    enable_vdf: bool,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -994,6 +998,10 @@ pub struct ProtocolConfig {
     // zklogin::check_zklogin_issuer
     check_zklogin_issuer_cost_base: Option<u64>,
 
+    // VDF related functions
+    vdf_verify_vdf_cost: Option<u64>,
+    vdf_hash_to_input_cost: Option<u64>,
+
     // Const params for consensus scoring decision
     // The scaling factor property for the MED outlier detection
     scoring_decision_mad_divisor: Option<f64>,
@@ -1273,6 +1281,10 @@ impl ProtocolConfig {
 
     pub fn consensus_network(&self) -> ConsensusNetwork {
         self.feature_flags.consensus_network
+    }
+
+    pub fn enable_vdf(&self) -> bool {
+        self.feature_flags.enable_vdf
     }
 }
 
@@ -1678,6 +1690,9 @@ impl ProtocolConfig {
             check_zklogin_id_cost_base: None,
             // zklogin::check_zklogin_issuer
             check_zklogin_issuer_cost_base: None,
+
+            vdf_verify_vdf_cost: None,
+            vdf_hash_to_input_cost: None,
 
             max_size_written_objects: None,
             max_size_written_objects_system_tx: None,
@@ -2119,6 +2134,11 @@ impl ProtocolConfig {
                     // Switch between Narwhal and Mysticeti per epoch in tests and devnet.
                     if chain != Chain::Testnet && chain != Chain::Mainnet {
                         cfg.feature_flags.consensus_choice = ConsensusChoice::SwapEachEpoch;
+
+                        // enable vdf in devnet
+                        cfg.feature_flags.enable_vdf = true;
+                        cfg.vdf_verify_vdf_cost = Some(2000);
+                        cfg.vdf_hash_to_input_cost = Some(1000);
                     }
                 }
                 // Use this template when making changes:
