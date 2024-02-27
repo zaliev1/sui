@@ -321,6 +321,17 @@ impl<'l, I: Iterator<Item = &'l str>> Iterator for Lexer<'l, I> {
     }
 }
 
+impl<'l, I: Iterator<Item = &'l str> + Clone> Clone for Lexer<'l, I> {
+    fn clone(&self) -> Self {
+        Self {
+            buf: self.buf,
+            tokens: self.tokens.clone(),
+            offset: self.offset,
+            done: self.done.clone(),
+        }
+    }
+}
+
 fn is_ident_start(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_'
 }
