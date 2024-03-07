@@ -481,6 +481,14 @@ impl DagState {
         votes
     }
 
+    /// Highest round where a block is committed, which is last commit's leader round.
+    pub(crate) fn last_commit_round(&self) -> Round {
+        match &self.last_commit {
+            Some(commit) => commit.leader().round,
+            None => 0,
+        }
+    }
+
     /// Index of the last commit.
     pub(crate) fn last_commit_index(&self) -> CommitIndex {
         match &self.last_commit {
