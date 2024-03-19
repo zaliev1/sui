@@ -593,14 +593,6 @@ impl DagState {
         self.genesis.values().cloned().collect()
     }
 
-    /// Highest round where a block is committed, which is last commit's leader round.
-    fn last_commit_round(&self) -> Round {
-        match &self.last_commit {
-            Some(commit) => commit.leader().round,
-            None => 0,
-        }
-    }
-
     /// The last round that got evicted after a cache clean up operation. After this round we are
     /// guaranteed to have all the produced blocks from that authority. For any round that is
     /// <= `last_evicted_round` we don't have such guarantees as out of order blocks might exist.
