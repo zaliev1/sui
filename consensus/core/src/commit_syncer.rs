@@ -26,20 +26,15 @@
 
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
-use consensus_config::AuthorityIndex;
-use futures::{stream::FuturesOrdered, StreamExt as _};
+use futures::stream::FuturesOrdered;
 use parking_lot::{Mutex, RwLock};
-use tokio::{
-    task::JoinSet,
-    time::{Interval, MissedTickBehavior},
-};
+use tokio::{task::JoinSet, time::MissedTickBehavior};
 
 use crate::{
     block::{BlockAPI, Round, VerifiedBlock},
     commit::{CommitRef, TrustedCommit},
     context::Context,
     dag_state::DagState,
-    error::ConsensusError,
 };
 
 pub(crate) struct CommitSyncer {
@@ -55,7 +50,7 @@ impl CommitSyncer {
             context,
             dag_state,
             inner: Arc::new(Mutex::new(Inner {
-                highest_received_rounds: vec![0; context.committee.size()],
+                highest_received_commits: vec![CommitRef::GENESIS; context.committee.size()],
                 pending_fetch_commits: VecDeque::new(),
             })),
             tasks: Arc::new(Mutex::new(JoinSet::new())),
@@ -66,8 +61,11 @@ impl CommitSyncer {
     /// are more advanced than the highest local accepted round.
     pub(crate) fn observe(&self, block: &VerifiedBlock) {
         let mut inner = self.inner.lock();
-        inner.highest_received_rounds[block.author()] =
-            inner.highest_received_rounds[block.author()].max(block.round());
+        for vote in block.commit_votes() {
+            if vote.index > inner.highest_received_commits[block.author()].index {
+                inner.highest_received_commits[block.author()] = *vote;
+            }
+        }
     }
 
     fn start(&self) {
@@ -82,7 +80,7 @@ impl CommitSyncer {
     ) {
         const COMMIT_LAG_THRESHOLD: Round = 20;
 
-        let mut fetch_commits_tasks = FuturesOrdered::new();
+        // let mut fetch_commits_tasks = FuturesOrdered::new();
 
         // let requests = VecDeque::new();
         let mut interval = tokio::time::interval(Duration::from_secs(2));
@@ -91,19 +89,19 @@ impl CommitSyncer {
             tokio::select! {
                 _ = interval.tick() => {
                     let mut inner = inner.lock();
-                    let quorum_highest_received_round = inner.quorum_highest_received_round(&context);
-                    let highest_accepted_round = dag_state.read().highest_accepted_round();
+                    let quorum_highest_received_commit = inner.quorum_highest_received_commit(&context);
+                    let last_commit = dag_state.read().last_commit();
                 }
-                result = pending_fetch_commits_tasks.next(), if !pending_fetch_commits_tasks.is_empty() => {
-                    let mut inner = inner.lock();
-                    let pending_fetch_commits = inner.pending_fetch_commits.pop_front().unwrap();
+                // result = pending_fetch_commits_tasks.next(), if !pending_fetch_commits_tasks.is_empty() => {
+                //     let mut inner = inner.lock();
+                //     let pending_fetch_commits = inner.pending_fetch_commits.pop_front().unwrap();
                     // if let Some(result) = result {
                     //     let (start, end, handle) = result;
                     //     if let Err(e) = handle.await {
                     //         log::warn!("Failed to fetch commits from {} to {}: {}", start, end, e);
                     //     }
                     // }
-                }
+                // }
             }
 
             // pending_fetch_commits_tasks.push_(tokio::spawn(async move {
@@ -118,28 +116,28 @@ impl CommitSyncer {
 }
 
 struct Inner {
-    highest_received_rounds: Vec<Round>,
+    highest_received_commits: Vec<CommitRef>,
     pending_fetch_commits: VecDeque<PendingFetchCommits>,
 }
 
 impl Inner {
-    fn quorum_highest_received_round(&self, context: &Context) -> Round {
-        let mut highest_received_rounds = context
+    fn quorum_highest_received_commit(&self, context: &Context) -> Option<CommitRef> {
+        let mut highest_received_commits = context
             .committee
             .authorities()
-            .zip(self.highest_received_rounds.iter())
+            .zip(self.highest_received_commits.iter())
             .map(|((_i, a), r)| (*r, a.stake))
             .collect::<Vec<_>>();
-        // Sort by round then stake, descending.
-        highest_received_rounds.sort_by(|a, b| a.cmp(&b).reverse());
+        // Sort by commit ref / index then stake, descending.
+        highest_received_commits.sort_by(|a, b| a.cmp(&b).reverse());
         let mut total_stake = 0;
-        for (round, stake) in highest_received_rounds {
+        for (commit_ref, stake) in highest_received_commits {
             total_stake += stake;
             if total_stake >= context.committee.validity_threshold() {
-                return round;
+                return Some(commit_ref);
             }
         }
-        0
+        None
     }
 }
 

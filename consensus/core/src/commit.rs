@@ -163,6 +163,7 @@ impl TrustedCommit {
         CommitRef {
             index: self.index(),
             digest: self.digest(),
+            round: self.round(),
         }
     }
 
@@ -235,10 +236,20 @@ impl fmt::Debug for CommitDigest {
 }
 
 /// Uniquely identifies a commit with its index and digest.
+/// Leader round is also included to incidate position of the commit in the DAG.
 #[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CommitRef {
     pub index: CommitIndex,
     pub digest: CommitDigest,
+    pub round: Round,
+}
+
+impl CommitRef {
+    pub const GENESIS: Self = Self {
+        index: 0,
+        digest: CommitDigest::MIN,
+        round: 0,
+    };
 }
 
 /// The output of consensus is an ordered list of [`CommittedSubDag`]. The application
