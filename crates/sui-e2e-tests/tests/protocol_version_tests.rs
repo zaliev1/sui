@@ -51,6 +51,57 @@ fn test_protocol_overrides_2() {
     );
 }
 
+#[tokio::test]
+async fn test_issue_with_stake_subsidy() {
+    const START: u64 = ProtocolVersion::MAX.as_u64();
+    const FINISH: u64 = START + 1;
+
+    fn fixture_package(fixture: &str) -> sui_move_build::CompiledPackage {
+        let mut package = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        package.extend(["tests", "framework_upgrades", fixture]);
+
+        let mut config = sui_move_build::BuildConfig::new_for_testing();
+        config.run_bytecode_verifier = true;
+        config.build(package).unwrap()
+    }
+
+    /// Get compiled modules for Sui System, built from fixture `fixture` in the
+    /// `framework_upgrades` directory.
+    fn sui_system_modules(fixture: &str) -> Vec<move_binary_format::CompiledModule> {
+        fixture_package(fixture)
+            .get_sui_system_modules()
+            .cloned()
+            .collect()
+    }
+
+    /// Like `sui_system_modules`, but package the modules in an `Object`.
+    fn sui_system_package_object(fixture: &str) -> sui_types::object::Object {
+        sui_types::object::Object::new_package(
+            &sui_system_modules(fixture),
+            sui_types::digests::TransactionDigest::genesis_marker(),
+            u64::MAX,
+            &[
+                sui_framework::BuiltInFramework::get_package_by_id(&sui_types::MOVE_STDLIB_PACKAGE_ID).genesis_move_package(),
+                sui_framework::BuiltInFramework::get_package_by_id(&sui_types::SUI_FRAMEWORK_PACKAGE_ID)
+                    .genesis_move_package(),
+            ],
+        )
+        .unwrap()
+    }
+
+    let test_cluster = TestClusterBuilder::new()
+        .with_epoch_duration_ms(20000)
+        .with_supported_protocol_versions(SupportedProtocolVersions::new_for_testing(
+            START, FINISH,
+        ))
+        .with_objects([sui_system_package_object("mock_sui_systems/base")])
+        .build()
+        .await;
+    // Wait for the upgrade to finish. After the upgrade, the new framework will be installed,
+    // but the system state object hasn't been upgraded yet.
+    let system_state = test_cluster.wait_for_epoch(Some(1)).await;
+}
+
 #[cfg(msim)]
 mod sim_only_tests {
 
