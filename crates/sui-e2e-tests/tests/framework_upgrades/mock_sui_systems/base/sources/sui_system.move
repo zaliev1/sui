@@ -46,6 +46,10 @@ module sui_system::sui_system {
         transfer::share_object(self);
     }
 
+    public fun active_validator_addresses(_: &mut SuiSystemState): vector<address> {
+        vector[]
+    }
+
     fun advance_epoch(
         storage_reward: Balance<SUI>,
         computation_reward: Balance<SUI>,
