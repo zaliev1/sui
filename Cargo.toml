@@ -561,6 +561,7 @@ move-abstract-stack = { path = "external-crates/move/crates/move-abstract-stack"
 fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "878492bd2541dce1491791bcadf3cc855ddcdc05" }
 fastcrypto-tbls = { git = "https://github.com/MystenLabs/fastcrypto", rev = "878492bd2541dce1491791bcadf3cc855ddcdc05" }
 fastcrypto-zkp = { git = "https://github.com/MystenLabs/fastcrypto", rev = "878492bd2541dce1491791bcadf3cc855ddcdc05", package = "fastcrypto-zkp" }
+fastcrypto-vdf = { git = "https://github.com/MystenLabs/fastcrypto", rev = "878492bd2541dce1491791bcadf3cc855ddcdc05", features = ["experimental"] }
 
 # anemo dependencies
 anemo = { git = "https://github.com/mystenlabs/anemo.git", rev = "26d415eb9aa6a2417be3c03c57d6e93c30bd1ad7" }
