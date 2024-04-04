@@ -99,6 +99,7 @@ pub(crate) struct NodeMetrics {
     pub last_decided_leader_round: IntGauge,
     pub leader_timeout_total: IntCounter,
     pub missing_blocks_total: IntGauge,
+    pub num_of_bad_nodes: IntGauge,
     pub quorum_receive_latency: Histogram,
     pub reputation_scores: IntGaugeVec,
     pub scope_processing_time: HistogramVec,
@@ -261,6 +262,11 @@ impl NodeMetrics {
                 "missing_blocks_total",
                 "Total number of missing blocks",
                 registry,
+            ).unwrap(),
+            num_of_bad_nodes: register_int_gauge_with_registry!(
+                "num_of_bad_nodes",
+                "The number of bad nodes in the new leader schedule",
+                registry
             ).unwrap(),
             quorum_receive_latency: register_histogram_with_registry!(
                 "quorum_receive_latency",

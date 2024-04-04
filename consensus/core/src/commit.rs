@@ -446,6 +446,16 @@ impl Display for LeaderStatus {
     }
 }
 
+/// Per-commit properties that can be derived and do not need to be part of the Commit struct.
+/// Only the latest version is needed for CommitInfo, but more versions are stored for
+/// debugging and potential recovery.
+// TODO: version this struct.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct CommitInfo {
+    pub(crate) last_committed_rounds: Vec<Round>,
+    pub(crate) reputation_scores: Vec<u64>,
+}
+
 /// CommitRange stores a range of CommitIndex. The range contains the start and
 /// end commit indices and can be ordered for use as the key of a table.
 /// Note: If used as a key for a table it is useful to ensure the key ranges don't

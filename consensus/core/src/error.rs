@@ -10,8 +10,7 @@ use typed_store::TypedStoreError;
 
 use crate::{
     block::{BlockRef, BlockTimestampMs, Round},
-    commit::Commit,
-    CommitIndex,
+    commit::{Commit, CommitIndex, CommitRange},
 };
 
 /// Errors that can occur when processing blocks, reading from storage, or encountering shutdown.
@@ -135,6 +134,14 @@ pub enum ConsensusError {
         peer: AuthorityIndex,
         requested: BlockRef,
         received: BlockRef,
+    },
+
+    #[error(
+        "Storage failure: Overlapping commit range, existing range {existing:?} & inserting range {inserting:?}"
+    )]
+    OverlappingCommitRange {
+        existing: CommitRange,
+        inserting: CommitRange,
     },
 
     #[error("RocksDB failure: {0}")]
