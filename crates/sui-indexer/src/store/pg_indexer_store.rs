@@ -816,9 +816,12 @@ impl PgIndexerStore {
                 },
                 Duration::from_secs(60)
             )
-            .tap(|_| {
+            .tap_ok(|_| {
                 let elapsed = now.elapsed().as_secs_f64();
                 info!(elapsed, "Persisted {} rows to tx_digests tables", calls_len);
+            })
+            .tap_err(|e| {
+                tracing::error!("Failed to persist tx_digests with error: {}", e);
             })
         }));
 
