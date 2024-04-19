@@ -1589,6 +1589,7 @@ dependencies = [
  "arbitrary",
  "enum-compat-util",
  "getrandom 0.2.9",
+ "itertools",
  "move-core-types",
  "move-proc-macros",
  "proptest",
