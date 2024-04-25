@@ -14,9 +14,7 @@ use tracing::error;
 
 use crate::{
     block::{
-        
         genesis_blocks, BlockAPI, BlockDigest, BlockRef, Round, Slot, VerifiedBlock, GENESIS_ROUND,
-    , GENESIS_ROUND,
     },
     commit::{
         load_committed_subdag_from_store, CommitAPI as _, CommitDigest, CommitIndex, CommitInfo,

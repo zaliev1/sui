@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque, VecDeque},
-    ops::{
-        Bound::{Excluded, Included, Unbounded},
-        Range,
-    },
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    ops::Bound::{Excluded, Included, Unbounded},
 };
 
 use consensus_config::AuthorityIndex;
@@ -14,11 +11,8 @@ use parking_lot::RwLock;
 
 use super::{Store, WriteBatch};
 use crate::{
-    block::{BlockAPI as _, BlockDigest, BlockRef, Round, Slot, Slot, VerifiedBlock},
-    commit::{
-        CommitAPI as _, CommitAPI as _, CommitDigest, CommitIndex, CommitInfo, CommitRange,
-        TrustedCommit, TrustedCommit,
-    },
+    block::{BlockAPI as _, BlockDigest, BlockRef, Round, Slot, VerifiedBlock},
+    commit::{CommitAPI as _, CommitDigest, CommitIndex, CommitInfo, CommitRange, TrustedCommit},
     error::{ConsensusError, ConsensusResult},
 };
 
@@ -87,7 +81,7 @@ impl Store for MemStore {
                     )),
                     Unbounded,
                 ))
-                .find(|(existing_range, _)| commit_range.range_overlaps(existing_range));
+                .find(|(existing_range, _)| commit_range.has_intersection(existing_range));
 
             if let Some((existing_range, _)) = overlapping_range {
                 return Err(ConsensusError::OverlappingCommitRange {

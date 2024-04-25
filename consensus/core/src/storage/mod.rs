@@ -11,7 +11,7 @@ use consensus_config::AuthorityIndex;
 
 use crate::{
     block::{BlockRef, Round, Slot, VerifiedBlock},
-    commit::{CommitInfo, CommitRange, TrustedCommit},
+    commit::{CommitIndex, CommitInfo, CommitRange, TrustedCommit},
     error::ConsensusResult,
 };
 

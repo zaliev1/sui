@@ -143,7 +143,7 @@ impl Store for RocksDBStore {
                 .next()
             {
                 let (existing_range, _) = kv?;
-                if commit_range.range_overlaps(&existing_range) {
+                if commit_range.has_intersection(&existing_range) {
                     return Err(ConsensusError::OverlappingCommitRange {
                         existing: existing_range,
                         inserting: commit_range.clone(),
