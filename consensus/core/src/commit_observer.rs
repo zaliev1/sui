@@ -8,9 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     block::{timestamp_utc_ms, BlockAPI, VerifiedBlock},
-    commit::{
-        load_committed_subdag_from_store, CommitAPI, CommitIndex, CommitRange, CommittedSubDag,
-    },
+    commit::{load_committed_subdag_from_store, CommitAPI, CommitIndex, CommittedSubDag},
     context::Context,
     dag_state::DagState,
     error::{ConsensusError, ConsensusResult},
@@ -116,9 +114,7 @@ impl CommitObserver {
         // We should not send the last processed commit again, so last_processed_commit_index+1
         let unsent_commits = self
             .store
-            .scan_commits(CommitRange::new(
-                (last_processed_commit_index + 1)..CommitIndex::MAX,
-            ))
+            .scan_commits(((last_processed_commit_index + 1)..CommitIndex::MAX).into())
             .expect("Scanning commits should not fail");
 
         // Resend all the committed subdags to the consensus output channel
@@ -276,7 +272,7 @@ mod tests {
         let last_commit = mem_store.read_last_commit().unwrap().unwrap();
         assert_eq!(last_commit.index(), commits.last().unwrap().commit_index);
         let all_stored_commits = mem_store
-            .scan_commits(CommitRange::new(0..CommitIndex::MAX))
+            .scan_commits((0..CommitIndex::MAX).into())
             .unwrap();
         assert_eq!(all_stored_commits.len(), leaders.len());
         let blocks_existence = mem_store.contains_blocks(&expected_stored_refs).unwrap();

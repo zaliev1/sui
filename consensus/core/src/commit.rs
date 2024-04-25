@@ -18,6 +18,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     block::{BlockAPI, BlockRef, BlockTimestampMs, Round, Slot, VerifiedBlock},
+    leader_scoring::ReputationScores,
     storage::Store,
 };
 
@@ -453,7 +454,7 @@ impl Display for LeaderStatus {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct CommitInfo {
     pub(crate) last_committed_rounds: Vec<Round>,
-    pub(crate) reputation_scores: Vec<u64>,
+    pub(crate) reputation_scores: ReputationScores,
 }
 
 /// CommitRange stores a range of CommitIndex. The range contains the start and
@@ -482,12 +483,6 @@ impl CommitRange {
     pub(crate) fn is_next_range(&self, other: &Self) -> bool {
         self.0.len() == other.0.len() && self.end() + 1 == other.start()
     }
-
-    /// Check if two CommitRange intersect. An intersection is true if any point
-    /// of the range intersects inclusive of the start and end indices.
-    pub(crate) fn has_intersection(&self, other: &Self) -> bool {
-        self.start() <= other.end() && self.end() >= other.start()
-    }
 }
 
 impl Ord for CommitRange {
@@ -501,6 +496,12 @@ impl Ord for CommitRange {
 impl PartialOrd for CommitRange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl From<Range<CommitIndex>> for CommitRange {
+    fn from(range: Range<CommitIndex>) -> Self {
+        Self(range)
     }
 }
 
@@ -599,14 +600,6 @@ mod tests {
         assert_eq!(range1.start(), 1);
         assert_eq!(range1.end(), 5);
 
-        // Test range intersection check
-        assert!(range1.has_intersection(&range2));
-        assert!(range1.has_intersection(&range3));
-        assert!(range3.has_intersection(&range1));
-        assert!(range3.has_intersection(&range4));
-        assert!(!range1.has_intersection(&range4));
-        assert!(!range4.has_intersection(&range1));
-
         // Test next range check
         assert!(!range1.is_next_range(&range2));
         assert!(!range1.is_next_range(&range3));
@@ -617,5 +610,6 @@ mod tests {
         assert!(range1 < range2);
         assert!(range2 < range3);
         assert!(range3 < range4);
+        assert!(range5 < range4);
     }
 }

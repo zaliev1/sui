@@ -11,7 +11,7 @@ use consensus_config::AuthorityIndex;
 
 use crate::{
     block::{BlockRef, Round, Slot, VerifiedBlock},
-    commit::{CommitIndex, CommitInfo, CommitRange, TrustedCommit},
+    commit::{CommitDigest, CommitIndex, CommitInfo, CommitRange, TrustedCommit},
     error::ConsensusResult,
 };
 
@@ -56,7 +56,9 @@ pub(crate) trait Store: Send + Sync {
     fn read_commit_votes(&self, commit_index: CommitIndex) -> ConsensusResult<Vec<BlockRef>>;
 
     /// Reads the last commit info, including last committed round per authority.
-    fn read_last_commit_info(&self) -> ConsensusResult<Option<(CommitRange, CommitInfo)>>;
+    fn read_last_commit_info(
+        &self,
+    ) -> ConsensusResult<Option<((CommitIndex, CommitDigest), CommitInfo)>>;
 }
 
 /// Represents data to be written to the store together atomically.
@@ -64,19 +66,19 @@ pub(crate) trait Store: Send + Sync {
 pub(crate) struct WriteBatch {
     pub(crate) blocks: Vec<VerifiedBlock>,
     pub(crate) commits: Vec<TrustedCommit>,
-    pub(crate) commit_ranges_with_commit_info: Vec<(CommitRange, CommitInfo)>,
+    pub(crate) commit_info: Vec<((CommitIndex, CommitDigest), CommitInfo)>,
 }
 
 impl WriteBatch {
     pub(crate) fn new(
         blocks: Vec<VerifiedBlock>,
         commits: Vec<TrustedCommit>,
-        commit_ranges_with_commit_info: Vec<(CommitRange, CommitInfo)>,
+        commit_info: Vec<((CommitIndex, CommitDigest), CommitInfo)>,
     ) -> Self {
         WriteBatch {
             blocks,
             commits,
-            commit_ranges_with_commit_info,
+            commit_info,
         }
     }
 
@@ -95,11 +97,11 @@ impl WriteBatch {
     }
 
     #[cfg(test)]
-    pub(crate) fn commit_ranges_with_commit_info(
+    pub(crate) fn commit_info(
         mut self,
-        commit_ranges_with_commit_info: Vec<(CommitRange, CommitInfo)>,
+        commit_info: Vec<((CommitIndex, CommitDigest), CommitInfo)>,
     ) -> Self {
-        self.commit_ranges_with_commit_info = commit_ranges_with_commit_info;
+        self.commit_info = commit_info;
         self
     }
 }

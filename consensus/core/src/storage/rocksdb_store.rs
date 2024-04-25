@@ -3,7 +3,7 @@
 
 use std::{
     collections::VecDeque,
-    ops::Bound::{Excluded, Included, Unbounded},
+    ops::Bound::{Excluded, Included},
     time::Duration,
 };
 
@@ -34,8 +34,10 @@ pub(crate) struct RocksDBStore {
     /// Collects votes on commits.
     /// TODO: batch multiple votes into a single row.
     commit_votes: DBMap<(CommitIndex, CommitDigest, BlockRef), ()>,
-    /// Stores the latest values of a few properties.
-    commit_info: DBMap<CommitRange, CommitInfo>,
+    /// Stores the latest values of a few properties. CommitInfo contains aggregated
+    /// CommitInfo across all previous commits. This info is keyed off the last commit
+    /// that is included in the range of these commits.
+    commit_info: DBMap<(CommitIndex, CommitDigest), CommitInfo>,
 }
 
 impl RocksDBStore {
@@ -81,7 +83,7 @@ impl RocksDBStore {
             Self::DIGESTS_BY_AUTHORITIES_CF;<(AuthorityIndex, Round, BlockDigest), ()>,
             Self::COMMITS_CF;<(CommitIndex, CommitDigest), Bytes>,
             Self::COMMIT_VOTES_CF;<(CommitIndex, CommitDigest, BlockRef), ()>,
-            Self::COMMIT_INFO_CF;<CommitRange, CommitInfo>
+            Self::COMMIT_INFO_CF;<(CommitIndex, CommitDigest), CommitInfo>
         );
 
         Self {
@@ -133,25 +135,12 @@ impl Store for RocksDBStore {
                 .map_err(ConsensusError::RocksDBFailure)?;
         }
 
-        for (commit_range, commit_info) in write_batch.commit_ranges_with_commit_info {
-            while let Some(kv) = self
-                .commit_info
-                .safe_range_iter((
-                    Included(CommitRange::new(commit_range.start()..commit_range.start())),
-                    Unbounded,
-                ))
-                .next()
-            {
-                let (existing_range, _) = kv?;
-                if commit_range.has_intersection(&existing_range) {
-                    return Err(ConsensusError::OverlappingCommitRange {
-                        existing: existing_range,
-                        inserting: commit_range.clone(),
-                    });
-                }
-            }
+        for ((commit_index, commit_digest), commit_info) in write_batch.commit_info {
             batch
-                .insert_batch(&self.commit_info, [(commit_range, commit_info)])
+                .insert_batch(
+                    &self.commit_info,
+                    [((commit_index, commit_digest), commit_info)],
+                )
                 .map_err(ConsensusError::RocksDBFailure)?;
         }
 
@@ -302,11 +291,14 @@ impl Store for RocksDBStore {
         Ok(votes)
     }
 
-    fn read_last_commit_info(&self) -> ConsensusResult<Option<(CommitRange, CommitInfo)>> {
+    fn read_last_commit_info(
+        &self,
+    ) -> ConsensusResult<Option<((CommitIndex, CommitDigest), CommitInfo)>> {
         let Some(result) = self.commit_info.safe_iter().skip_to_last().next() else {
             return Ok(None);
         };
-        let (commit_range, commit_info) = result.map_err(ConsensusError::RocksDBFailure)?;
-        Ok(Some((commit_range, commit_info)))
+        let ((commit_index, commit_digest), commit_info) =
+            result.map_err(ConsensusError::RocksDBFailure)?;
+        Ok(Some(((commit_index, commit_digest), commit_info)))
     }
 }

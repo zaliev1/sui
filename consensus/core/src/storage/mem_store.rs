@@ -3,7 +3,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
-    ops::Bound::{Excluded, Included, Unbounded},
+    ops::Bound::{Excluded, Included},
 };
 
 use consensus_config::AuthorityIndex;
@@ -13,7 +13,7 @@ use super::{Store, WriteBatch};
 use crate::{
     block::{BlockAPI as _, BlockDigest, BlockRef, Round, Slot, VerifiedBlock},
     commit::{CommitAPI as _, CommitDigest, CommitIndex, CommitInfo, CommitRange, TrustedCommit},
-    error::{ConsensusError, ConsensusResult},
+    error::ConsensusResult,
 };
 
 /// In-memory storage for testing.
@@ -26,7 +26,7 @@ struct Inner {
     digests_by_authorities: BTreeSet<(AuthorityIndex, Round, BlockDigest)>,
     commits: BTreeMap<(CommitIndex, CommitDigest), TrustedCommit>,
     commit_votes: BTreeSet<(CommitIndex, CommitDigest, BlockRef)>,
-    commit_info: BTreeMap<CommitRange, CommitInfo>,
+    commit_info: BTreeMap<(CommitIndex, CommitDigest), CommitInfo>,
 }
 
 impl MemStore {
@@ -72,24 +72,10 @@ impl Store for MemStore {
                 .insert((commit.index(), commit.digest()), commit);
         }
 
-        for (commit_range, commit_info) in write_batch.commit_ranges_with_commit_info {
-            let overlapping_range = inner
+        for ((commit_index, commit_digest), commit_info) in write_batch.commit_info {
+            inner
                 .commit_info
-                .range((
-                    Included(&CommitRange::new(
-                        commit_range.start()..commit_range.start(),
-                    )),
-                    Unbounded,
-                ))
-                .find(|(existing_range, _)| commit_range.has_intersection(existing_range));
-
-            if let Some((existing_range, _)) = overlapping_range {
-                return Err(ConsensusError::OverlappingCommitRange {
-                    existing: existing_range.clone(),
-                    inserting: commit_range,
-                });
-            }
-            inner.commit_info.insert(commit_range, commit_info);
+                .insert((commit_index, commit_digest), commit_info);
         }
         Ok(())
     }
@@ -214,11 +200,13 @@ impl Store for MemStore {
         Ok(votes)
     }
 
-    fn read_last_commit_info(&self) -> ConsensusResult<Option<(CommitRange, CommitInfo)>> {
+    fn read_last_commit_info(
+        &self,
+    ) -> ConsensusResult<Option<((CommitIndex, CommitDigest), CommitInfo)>> {
         let inner = self.inner.read();
         Ok(inner
             .commit_info
             .last_key_value()
-            .map(|(k, v)| (k.clone(), v.clone())))
+            .map(|(k, v)| (*k, v.clone())))
     }
 }

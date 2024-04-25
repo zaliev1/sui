@@ -390,18 +390,11 @@ impl Core {
                 .filter_map(|leader| leader.into_committed_block())
                 .collect::<Vec<_>>();
 
-            match self.commit_observer.handle_commit(committed_leaders) {
-                Ok(subdags) => {
-                    self.dag_state
-                        .write()
-                        .add_unscored_committed_subdags(subdags.clone());
-                    committed_subdags.extend(subdags);
-                }
-                Err(err) => {
-                    warn!("Error while handling commit: {err}");
-                    return Err(err);
-                }
-            };
+            let subdags = self.commit_observer.handle_commit(committed_leaders)?;
+            self.dag_state
+                .write()
+                .add_unscored_committed_subdags(subdags.clone());
+            committed_subdags.extend(subdags);
 
             if self
                 .leader_schedule
@@ -634,7 +627,7 @@ mod test {
     use crate::{
         block::{genesis_blocks, TestBlock},
         block_verifier::NoopBlockVerifier,
-        commit::{CommitAPI as _, CommitRange},
+        commit::CommitAPI as _,
         leader_scoring::ReputationScores,
         storage::{mem_store::MemStore, Store, WriteBatch},
         transaction::TransactionClient,
@@ -743,9 +736,7 @@ mod test {
         // as soon as the new block for round 5 is proposed.
         assert_eq!(last_commit.index(), 2);
         assert_eq!(dag_state.read().last_commit_index(), 2);
-        let all_stored_commits = store
-            .scan_commits(CommitRange::new(0..CommitIndex::MAX))
-            .unwrap();
+        let all_stored_commits = store.scan_commits((0..CommitIndex::MAX).into()).unwrap();
         assert_eq!(all_stored_commits.len(), 2);
     }
 
@@ -863,9 +854,7 @@ mod test {
         // as the new block for round 4 is proposed.
         assert_eq!(last_commit.index(), 2);
         assert_eq!(dag_state.read().last_commit_index(), 2);
-        let all_stored_commits = store
-            .scan_commits(CommitRange::new(0..CommitIndex::MAX))
-            .unwrap();
+        let all_stored_commits = store.scan_commits((0..CommitIndex::MAX).into()).unwrap();
         assert_eq!(all_stored_commits.len(), 2);
     }
 
@@ -1124,9 +1113,7 @@ mod test {
             // There are 1 leader rounds with rounds completed up to and including
             // round 4
             assert_eq!(last_commit.index(), 1);
-            let all_stored_commits = store
-                .scan_commits(CommitRange::new(0..CommitIndex::MAX))
-                .unwrap();
+            let all_stored_commits = store.scan_commits((0..CommitIndex::MAX).into()).unwrap();
             assert_eq!(all_stored_commits.len(), 1);
         }
     }
@@ -1200,9 +1187,7 @@ mod test {
             // round 29. Round 30 blocks will only include their own blocks, so the
             // 28th leader will not be committed.
             assert_eq!(last_commit.index(), 27);
-            let all_stored_commits = store
-                .scan_commits(CommitRange::new(0..CommitIndex::MAX))
-                .unwrap();
+            let all_stored_commits = store.scan_commits((0..CommitIndex::MAX).into()).unwrap();
             assert_eq!(all_stored_commits.len(), 27);
             assert_eq!(
                 core.leader_schedule
@@ -1221,7 +1206,7 @@ mod test {
                 1
             );
             let expected_reputation_scores =
-                ReputationScores::new(CommitRange::new(11..20), vec![8, 8, 9, 8]);
+                ReputationScores::new((11..20).into(), vec![8, 8, 9, 8]);
             assert_eq!(
                 core.leader_schedule
                     .leader_swap_table
@@ -1301,9 +1286,7 @@ mod test {
             // round 9. Round 10 blocks will only include their own blocks, so the
             // 8th leader will not be committed.
             assert_eq!(last_commit.index(), 7);
-            let all_stored_commits = store
-                .scan_commits(CommitRange::new(0..CommitIndex::MAX))
-                .unwrap();
+            let all_stored_commits = store.scan_commits((0..CommitIndex::MAX).into()).unwrap();
             assert_eq!(all_stored_commits.len(), 7);
         }
     }
@@ -1376,9 +1359,7 @@ mod test {
         // round 10. However because there were no blocks produced for authority 3
         // 2 leader rounds will be skipped.
         assert_eq!(last_commit.index(), 6);
-        let all_stored_commits = store
-            .scan_commits(CommitRange::new(0..CommitIndex::MAX))
-            .unwrap();
+        let all_stored_commits = store.scan_commits((0..CommitIndex::MAX).into()).unwrap();
         assert_eq!(all_stored_commits.len(), 6);
     }
 
