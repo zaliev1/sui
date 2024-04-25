@@ -132,8 +132,15 @@ pub enum ReplayEngineError {
         local: Box<SuiTransactionBlockEffects>,
     },
 
-    #[error("Genesis replay not supported digest {:#?}", digest)]
-    GenesisReplayNotSupported { digest: TransactionDigest },
+    #[error(
+        "Transaction {:#?} not supported by replay. Reason: {:?}",
+        digest,
+        reason
+    )]
+    TransactionNotSupported {
+        digest: TransactionDigest,
+        reason: String,
+    },
 
     #[error(
         "Fatal! No framework versions for protocol version {protocol_version}. Make sure version tables are populated"

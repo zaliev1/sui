@@ -49,7 +49,7 @@ use sui_sdk::{SuiClient, SuiClientBuilder};
 use sui_types::storage::{get_module, PackageObject};
 use sui_types::transaction::TransactionKind::ProgrammableTransaction;
 use sui_types::{
-    base_types::{ObjectID, ObjectRef, SequenceNumber, SuiAddress, VersionNumber},
+    base_types::{ObjectID, ObjectRef, SequenceNumber, VersionNumber},
     committee::EpochId,
     digests::{ChainIdentifier, CheckpointDigest, ObjectDigest, TransactionDigest},
     error::{ExecutionError, SuiError, SuiResult},
@@ -641,23 +641,15 @@ impl LocalExec {
         expensive_safety_check_config: ExpensiveSafetyCheckConfig,
     ) -> Result<ExecutionSandboxState, ReplayEngineError> {
         let tx_digest = &tx_info.tx_digest;
-        // A lot of the logic here isnt designed for genesis
-        if *tx_digest == TransactionDigest::genesis_marker() || tx_info.sender == SuiAddress::ZERO {
-            // Genesis.
+        // TODO: Support system transactions.
+        if tx_info.sender_signed_data.transaction_data().is_system_tx() {
             warn!(
-                "Genesis/system TX replay not supported: {}, skipping transaction",
+                "System TX replay not supported: {}, skipping transaction",
                 tx_digest
             );
-            // Return the same data from onchain since we dont want to fail nor do we want to recompute
-            // Assume genesis transactions are always successful
-            let effects = tx_info.effects.clone();
-            return Ok(ExecutionSandboxState {
-                transaction_info: tx_info.clone(),
-                required_objects: vec![],
-                local_exec_temporary_store: None,
-                local_exec_effects: effects,
-                local_exec_status: Some(Ok(())),
-                pre_exec_diag: self.diag.clone(),
+            return Err(ReplayEngineError::TransactionNotSupported {
+                digest: *tx_digest,
+                reason: "System transaction".to_string(),
             });
         }
         // Initialize the state necessary for execution
